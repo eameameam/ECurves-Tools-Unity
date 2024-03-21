@@ -30,7 +30,7 @@ Choose whether to immediately save changes to the Asset Database.
 ## ECurves Remover
 `ECurvesRemover` is another essential Unity Editor extension for managing animation curves. It enables users to delete unwanted curves from animation clips or modify their hierarchy paths, streamlining the cleanup or reorganization of animation data.
 
-![ECurvesRemover Window](/ECurvesRemover.png)
+![ECurveRenamer Window](/EСurvesRemover.png)
 
 ## Installation
 Copy ECurvesRemover.cs into your Unity project's Editor folder alongside ECurveRenamer.cs.

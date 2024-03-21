@@ -117,7 +117,7 @@ public class ECurveRenamer : EditorWindow
                         AnimationUtility.SetEditorCurve(clip, newCurveBinding, curve);
                         clipModified = true;
                     }
-                    else
+                    else if (!curveBinding.path.EndsWith("/" + _oldName))
                     {
                         Debug.LogWarning("Unfortunately you need to write the correct name hahaha :D");
                     }

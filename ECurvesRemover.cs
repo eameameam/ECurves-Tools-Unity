@@ -98,6 +98,8 @@ public class ECurvesRemover : EditorWindow
     {
         bool changesMade = false;
 
+        Undo.RecordObject(clip, "Modify Animation Curves");
+
         foreach (var binding in pathsToDelete)
         {
             AnimationUtility.SetEditorCurve(clip, binding, null);
@@ -110,10 +112,17 @@ public class ECurvesRemover : EditorWindow
             changesMade = true;
         }
 
-        if (changesMade && _saveAssets)
+        if (changesMade)
         {
-            AssetDatabase.SaveAssets();
-            Debug.Log("Assets saved.");
+            EditorUtility.SetDirty(clip);
+
+            if (_saveAssets)
+            {
+                AssetDatabase.SaveAssets();
+                Debug.Log("Assets saved.");
+            }
+
+            Undo.FlushUndoRecordObjects();
         }
     }
 

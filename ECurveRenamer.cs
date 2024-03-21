@@ -20,7 +20,7 @@ public class ECurveRenamer : EditorWindow
     readonly bool[] _positionAxes = new bool[] { true, true, true };
 
 
-    readonly List<AnimationClip> _clipsWithModifiedCurves = new List<AnimationClip>();
+    List<AnimationClip> _clipsWithModifiedCurves = new List<AnimationClip>();
 
     [MenuItem("Escripts/ERenamer Animation Curves")]
     public static void ShowWindow()
@@ -92,14 +92,15 @@ public class ECurveRenamer : EditorWindow
 
     void RenameSelectedCurves()
     {
+        var clipsToModify = new List<AnimationClip>();
         foreach (Object obj in Selection.objects)
         {
             if (obj is AnimationClip clip)
             {
-                Undo.RecordObject(clip, "Rename Animation Curves");
-                bool clipModified = false;
+                var curveBindings = AnimationUtility.GetCurveBindings(clip).Where(IsCurveSelected).ToArray();
+                var curvesToUpdate = new List<EditorCurveBinding>();
+                var newCurves = new List<AnimationCurve>();
 
-                var curveBindings = AnimationUtility.GetCurveBindings(clip).Where(binding => IsCurveSelected(binding)).ToArray();
                 foreach (EditorCurveBinding curveBinding in curveBindings)
                 {
                     if (curveBinding.path.EndsWith(_oldName) || curveBinding.path.EndsWith("/" + _oldName))
@@ -112,28 +113,43 @@ public class ECurveRenamer : EditorWindow
                             propertyName = curveBinding.propertyName,
                             type = curveBinding.type
                         };
-
-                        AnimationUtility.SetEditorCurve(clip, curveBinding, null);
-                        AnimationUtility.SetEditorCurve(clip, newCurveBinding, curve);
-                        clipModified = true;
-                    }
-                    else if (!curveBinding.path.EndsWith("/" + _oldName))
-                    {
-                        Debug.LogWarning("Unfortunately you need to write the correct name hahaha :D");
+                        curvesToUpdate.Add(curveBinding);
+                        newCurves.Add(curve);
                     }
                 }
 
-                if (clipModified)
+                if (curvesToUpdate.Count > 0)
                 {
-                    if (_setDirty)
+                    Undo.RecordObject(clip, "Rename Animation Curves");
+                    for (int i = 0; i < curvesToUpdate.Count; i++)
                     {
-                        EditorUtility.SetDirty(clip);
+                        AnimationUtility.SetEditorCurve(clip, curvesToUpdate[i], null);
+                        AnimationUtility.SetEditorCurve(clip, new EditorCurveBinding
+                        {
+                            path = curvesToUpdate[i].path.Replace(_oldName, _newName),
+                            propertyName = curvesToUpdate[i].propertyName,
+                            type = curvesToUpdate[i].type
+                        }, newCurves[i]);
                     }
-                    _clipsWithModifiedCurves.Add(clip);
+
+                    clipsToModify.Add(clip);
                 }
             }
         }
+
+        if (_setDirty && clipsToModify.Count > 0)
+        {
+            foreach (var modifiedClip in clipsToModify)
+            {
+                EditorUtility.SetDirty(modifiedClip);
+            }
+
+            AssetDatabase.SaveAssets();
+        }
+
+        _clipsWithModifiedCurves = clipsToModify;
     }
+
     
     bool IsCurveSelected(EditorCurveBinding binding)
     {

@@ -47,7 +47,8 @@ Choose to delete only position, rotation, or scale curves to refine which data i
 ### Hierarchy Modification
 Easily cut out parts of curve paths or change their hierarchy without deleting them, allowing for flexible reorganization of animation data.
 
-### Decide whether to save changes immediately to the Asset Database to ensure all modifications are persisted.
+### Asset Database Management
+Decide whether to save changes immediately to the Asset Database to ensure all modifications are persisted.
 
 ## Quick Removal
 1. Select the animation clips you wish to modify in the Project window.

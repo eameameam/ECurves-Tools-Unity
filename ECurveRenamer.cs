@@ -1,8 +1,6 @@
 ﻿using UnityEngine;
 using UnityEditor;
-using UnityEditor.Animations;
 using System.Collections.Generic;
-using System.Linq;
 
 public class ECurveRenamer : EditorWindow
 {
@@ -19,8 +17,8 @@ public class ECurveRenamer : EditorWindow
     readonly bool[] _rotationAxes = new bool[] { true, true, true };
     readonly bool[] _positionAxes = new bool[] { true, true, true };
 
-
     List<AnimationClip> _clipsWithModifiedCurves = new List<AnimationClip>();
+    List<AnimationClip> _clipsToRename = new List<AnimationClip>();
 
     [MenuItem("Escripts/ERenamer Animation Curves")]
     public static void ShowWindow()
@@ -88,98 +86,71 @@ public class ECurveRenamer : EditorWindow
         {
             UndoRename();
         }
+        
+        EditorGUILayout.BeginHorizontal();
+
+        EditorGUILayout.BeginVertical();
+        
+        EditorGUILayout.BeginHorizontal();
+        GUILayout.Label("Animation Clips", EditorStyles.boldLabel);
+        if (GUILayout.Button("+", GUILayout.Width(20)))
+        {
+            _clipsToRename.Add(null);
+        }
+        EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.BeginVertical();
+        for (int i = 0; i < _clipsToRename.Count; i++)
+        {
+            EditorGUILayout.BeginHorizontal();
+            _clipsToRename[i] = (AnimationClip)EditorGUILayout.ObjectField(_clipsToRename[i], typeof(AnimationClip), false);
+
+            if (GUILayout.Button("-", GUILayout.Width(20)))
+            {
+                _clipsToRename.RemoveAt(i);
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+        EditorGUILayout.EndVertical();
+    
+        EditorGUILayout.EndVertical();
+
+        GUILayout.Space(10);
+        Event evt = Event.current;
+        Rect dropArea = GUILayoutUtility.GetRect(0.0f, 50.0f, GUILayout.Width(100));
+        GUI.Box(dropArea, "Drag\nTo Fill\nThe List of Clips");
+
+        switch (evt.type)
+        {
+            case EventType.DragUpdated:
+            case EventType.DragPerform:
+                if (!dropArea.Contains(evt.mousePosition))
+                    break;
+
+                DragAndDrop.visualMode = DragAndDropVisualMode.Copy;
+
+                if (evt.type == EventType.DragPerform)
+                {
+                    DragAndDrop.AcceptDrag();
+
+                    _clipsToRename.Clear();
+                    foreach (Object draggedObject in DragAndDrop.objectReferences)
+                    {
+                        AnimationClip clip = draggedObject as AnimationClip;
+                        if (clip != null)
+                        {
+                            _clipsToRename.Add(clip);
+                        }
+                    }
+                }
+                break;
+        }
+        EditorGUILayout.EndHorizontal();
     }
 
     void RenameSelectedCurves()
     {
-        var clipsToModify = new List<AnimationClip>();
-        foreach (Object obj in Selection.objects)
-        {
-            if (obj is AnimationClip clip)
-            {
-                var curveBindings = AnimationUtility.GetCurveBindings(clip).Where(IsCurveSelected).ToArray();
-                var curvesToUpdate = new List<EditorCurveBinding>();
-                var newCurves = new List<AnimationCurve>();
-
-                foreach (EditorCurveBinding curveBinding in curveBindings)
-                {
-                    if (curveBinding.path.EndsWith(_oldName) || curveBinding.path.EndsWith("/" + _oldName))
-                    {
-                        AnimationCurve curve = AnimationUtility.GetEditorCurve(clip, curveBinding);
-                        string newPath = curveBinding.path.Replace(_oldName, _newName);
-                        EditorCurveBinding newCurveBinding = new EditorCurveBinding
-                        {
-                            path = newPath,
-                            propertyName = curveBinding.propertyName,
-                            type = curveBinding.type
-                        };
-                        curvesToUpdate.Add(curveBinding);
-                        newCurves.Add(curve);
-                    }
-                }
-
-                if (curvesToUpdate.Count > 0)
-                {
-                    Undo.RecordObject(clip, "Rename Animation Curves");
-                    for (int i = 0; i < curvesToUpdate.Count; i++)
-                    {
-                        AnimationUtility.SetEditorCurve(clip, curvesToUpdate[i], null);
-                        AnimationUtility.SetEditorCurve(clip, new EditorCurveBinding
-                        {
-                            path = curvesToUpdate[i].path.Replace(_oldName, _newName),
-                            propertyName = curvesToUpdate[i].propertyName,
-                            type = curvesToUpdate[i].type
-                        }, newCurves[i]);
-                    }
-
-                    clipsToModify.Add(clip);
-                }
-            }
-        }
-
-        if (_setDirty && clipsToModify.Count > 0)
-        {
-            foreach (var modifiedClip in clipsToModify)
-            {
-                EditorUtility.SetDirty(modifiedClip);
-            }
-
-            AssetDatabase.SaveAssets();
-        }
-
-        _clipsWithModifiedCurves = clipsToModify;
-    }
-
-    
-    bool IsCurveSelected(EditorCurveBinding binding)
-    {
-        if (_all) return true;
-        
-        if (binding.type != typeof(Transform)) return false;
-
-        bool isSelected = false;
-        string property = binding.propertyName.ToLower();
-
-        if (_scaleToggle && property.Contains("scale"))
-        {
-            isSelected |= _scaleAxes[0] && property.Contains(".x");
-            isSelected |= _scaleAxes[1] && property.Contains(".y");
-            isSelected |= _scaleAxes[2] && property.Contains(".z");
-        }
-        if (_rotationToggle && property.Contains("rotation"))
-        {
-            isSelected |= _rotationAxes[0] && property.Contains(".x");
-            isSelected |= _rotationAxes[1] && property.Contains(".y");
-            isSelected |= _rotationAxes[2] && property.Contains(".z");
-        }
-        if (_positionToggle && property.Contains("position"))
-        {
-            isSelected |= _positionAxes[0] && property.Contains(".x");
-            isSelected |= _positionAxes[1] && property.Contains(".y");
-            isSelected |= _positionAxes[2] && property.Contains(".z");
-        }
-
-        return isSelected;
+        ECurveRenamerUtility.RenameCurves(_clipsToRename, _oldName, _newName, _setDirty, _all, _scaleAxes, _rotationAxes, _positionAxes);
     }
 
     void UndoRename()
